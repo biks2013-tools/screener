@@ -11,6 +11,7 @@ Homebrew (installs `tesseract` too):
 
 ```bash
 brew tap biks2013-tools/screener
+brew trust biks2013-tools/screener   # once: Homebrew 7 loads casks only from trusted third-party taps
 brew install --cask screener
 ```
 

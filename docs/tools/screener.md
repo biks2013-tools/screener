@@ -172,7 +172,8 @@
 
         <examples>
             # Install (installs tesseract too)
-            brew tap biks2013-tools/screener && brew install --cask screener
+            brew tap biks2013-tools/screener && brew trust biks2013-tools/screener && brew install --cask screener
+            # (Homebrew 7 loads casks only from trusted third-party taps; brew trust is needed once)
             open -a screener     # first launch: "Create Config from Example"
             # Grant Screen Recording on first capture, then quit and reopen screener.
 

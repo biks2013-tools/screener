@@ -21,7 +21,7 @@ Last verified: 2026-10-09 (`v0.2.1`, cask `0.2.1`). Environment: macOS 27.0, Xco
 | 0.2 | Developer ID Application certificate with its private key | `security find-identity -v -p codesigning` lists `Developer ID Application: GEORGIOS MARINOS (9F9H8NCAUB)` | Xcode → Settings → Accounts → Manage Certificates → **+** → Developer ID Application. Export a `.p12` backup. |
 | 0.3 | notarytool keychain profile `screener-notary` | `xcrun notarytool history --keychain-profile screener-notary` prints a history without an error | See 0.3 below |
 | 0.4 | GitHub CLI logged in as `BikS2013` | `gh auth status` | `gh auth login` |
-| 0.5 | Homebrew clone of the tap | `git -C "$(brew --repo biks2013-tools/screener)" remote -v` shows `homebrew-screener` | `brew tap biks2013-tools/screener` |
+| 0.5 | Homebrew clone of the tap, trusted | `git -C "$(brew --repo biks2013-tools/screener)" remote -v` shows `homebrew-screener`, and `brew tap-info biks2013-tools/screener` says `Trusted` | `brew tap biks2013-tools/screener && brew trust biks2013-tools/screener` (Homebrew 7 refuses to load casks from untrusted third-party taps, so `brew audit` / `livecheck` fail with "untrusted tap" until then) |
 
 **Two identities share the same name.** Two valid `Developer ID Application: GEORGIOS MARINOS (9F9H8NCAUB)` certificates exist: `2C7D6068C232BA74073D56085DDBB04E5F14DF30` (2026-09-11) and `CEC7876107F7ED244ACA2B9ED7D6E9DE0056931C` (2026-09-18), both expiring 2027-02-01. Signing by name fails as "ambiguous", so pass the SHA-1. Releases use `2C7D6068…`. The app's designated requirement is tied to the team ID, so the Screen Recording permission survives switching between the two.
 
@@ -166,6 +166,10 @@ brew audit --cask --online --strict biks2013-tools/screener/screener # no output
 brew livecheck --cask biks2013-tools/screener/screener               # "<version> ==> <version>"
 brew info --cask biks2013-tools/screener/screener | head -1          # shows <version>
 ```
+
+The install instructions users get (README, tap README, `INSTALL.txt`, release notes) must include `brew trust biks2013-tools/screener`: on Homebrew 7 a plain `brew tap … && brew install --cask screener` fails with "Refusing to load cask … from untrusted tap" (verified 2026-11-02, Homebrew 7.0.12). A fully qualified `brew install --cask biks2013-tools/screener/screener` works without it.
+
+Running `brew install`/`upgrade` also triggers Homebrew's automatic cleanup of outdated kegs and caches on this Mac.
 
 Do not run `brew install --cask screener` into `/Applications` on the development Mac while screener runs: the cask's `uninstall quit:` stanza would quit it. Test in a scratch folder instead: `brew install --cask --appdir="$(mktemp -d)" biks2013-tools/screener/screener`, then `brew uninstall --cask screener` and reopen `/Applications/screener.app`.
 

@@ -22,6 +22,15 @@
 
 ## Resolved
 
+- 2026-11-02 — **Documented Homebrew install fails on Homebrew 7.** `brew tap biks2013-tools/screener && brew install --cask screener`
+  stops with "Refusing to load cask … from untrusted tap": Homebrew 7 (7.0.12) loads casks only from trusted third-party taps.
+  Found when the local tap was switched from `biks2013/screener` to `biks2013-tools/screener` after the organization move.
+  - **Fix:** every install instruction now includes `brew trust biks2013-tools/screener` (README, tap README in both
+    repositories, `INSTALL.txt`, tool doc, runbook, v0.2.2 release notes). The fully qualified
+    `brew install --cask biks2013-tools/screener/screener` works without it.
+  - **Not fixed here:** the sibling taps `biks2013-tools/ntakker` (untrusted on this Mac, its cask fails to load) and
+    probably `homebrew-jumpee` have the same issue.
+
 - 2026-11-02 — **Capture failed with `TextRecognition.CRImageReaderError error 1`.**
   - **Symptom:** the 0.2.1 app had been running for 17 days, through the macOS 27.0.1 update and reboot. Apple Vision
     failed inside that process to load its on-device model (`E5RT … precompiled_compute_operation … failed (Code: 13)`),
@@ -58,6 +67,20 @@
   `com.local.screener` needs the permission granted once (the old entry was reset with `tccutil`).
 
 ## Release log
+
+- 2026-11-02 — **0.2.2 build 6** (`v0.2.2`): a capture survives a broken Apple Vision (auto mode copies the engine that
+  succeeded), the Vision failure message is clear, and warning toasts stay at least 4 s.
+  Command: `CODESIGN_IDENTITY=2C7D6068C232BA74073D56085DDBB04E5F14DF30 NOTARY_PROFILE=screener-notary bash package.sh`,
+  run from the commit tagged `v0.2.2`. 40 tests passed. Notarization `status: Accepted` for the app and the disk image;
+  Gatekeeper `source=Notarized Developer ID` for both.
+  SHA-256: `6fb0171dc64100af827e3f12f586ed5a9df88bf5ee6206528bae7f6b5b866f21  screener-0.2.2.zip`,
+  `9c7680535cb04f8e66a2a5b35bdbb912061cc41968eb53a8902c15ada08f7c88  screener-0.2.2.dmg`.
+  Published: https://github.com/biks2013-tools/screener/releases/tag/v0.2.2 (Latest; anonymous zip download checksum
+  verified). Cask `0.2.2` in biks2013-tools/homebrew-screener (commit `8da672a`): `brew style` clean,
+  `brew audit --strict --online` passed, livecheck `0.2.2`. A scratch install via the fully qualified name succeeded.
+  Unusual: this Mac's tap was switched from `biks2013/screener` to `biks2013-tools/screener` and trusted. The Homebrew 7
+  trust requirement was found here and added to the install docs; the release notes were edited after publishing.
+  Installed at `/Applications/screener.app`; build 5 was backed up to `dist/backup/`.
 
 - 2026-10-09 — **0.2.1 build 5** (`v0.2.1`): full-width text-mode selections, plus the switch to Jumpee's Homebrew deployment:
   - `build.sh` / `package.sh` at the root, output in `build.noindex/` and `dist/`;

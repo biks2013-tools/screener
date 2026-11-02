@@ -6,8 +6,11 @@ Homebrew tap for [screener](https://github.com/biks2013-tools/screener) — a ma
 
 ```bash
 brew tap biks2013-tools/screener
+brew trust biks2013-tools/screener
 brew install --cask screener
 ```
+
+`brew trust` is needed once: Homebrew 7 refuses to load casks from a third-party tap until you trust it ("Refusing to load cask … from untrusted tap"). The one-line alternative `brew install --cask biks2013-tools/screener/screener` also works without it.
 
 The cask also installs `tesseract`, which screener uses for Greek text.
 
