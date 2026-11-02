@@ -22,6 +22,21 @@
 
 ## Resolved
 
+- 2026-11-02 — **Capture failed with `TextRecognition.CRImageReaderError error 1`.**
+  - **Symptom:** the 0.2.1 app had been running for 17 days, through the macOS 27.0.1 update and reboot. Apple Vision
+    failed inside that process to load its on-device model (`E5RT … precompiled_compute_operation … failed (Code: 13)`),
+    so the overlay warm-up and every capture failed. A fresh process (standalone probe, `--ocr-file`, relaunch) worked
+    immediately.
+  - **Cause:** a macOS-side failure in the long-running process. screener's flaw was that auto mode aborted the whole
+    capture when Vision failed, even though Tesseract had read the text.
+  - **Fix (0.2.2):**
+    - `OCR.chooseAuto` copies whichever engine succeeded and warns in the toast; the capture fails only when both fail.
+    - Vision failures (recognition and text-mode line detection) become `OCRError.visionUnavailable`:
+      "Apple text recognition stopped working in this session (…). Quit and reopen screener."
+    - Toasts carrying a warning stay at least 4 s.
+  - **Tests:** `AutoEngineChoiceTests` (7 cases).
+  - **Immediate workaround:** quit and reopen screener.
+
 - 2026-10-09 — **Text mode cut multi-line selections to the width of the end lines.** Selecting from a short line
   over a long line to another short line captured only the short lines' width (reported with a 184 × 84 selection
   that truncated "The filename exceeds … then"). Cause: the selection was the union of the anchor and focused

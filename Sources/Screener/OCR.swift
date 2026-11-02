@@ -14,12 +14,17 @@ enum OCRError: LocalizedError {
     case tesseractLaunch(String)
     case tesseractFailed(Int32, String)
     case imageEncoding
+    /// Apple Vision failed inside macOS (e.g. its on-device model could not be loaded). Seen in an app process
+    /// that had been running for weeks: a fresh process works, so the fix for the user is a restart.
+    case visionUnavailable(String)
 
     var errorDescription: String? {
         switch self {
         case .tesseractLaunch(let reason): return "Could not start Tesseract: \(reason)"
         case .tesseractFailed(let code, let stderr): return "Tesseract exited with status \(code): \(stderr)"
         case .imageEncoding: return "Could not prepare the captured image for OCR."
+        case .visionUnavailable(let reason):
+            return "Apple text recognition stopped working in this session (macOS: \(reason)). Quit and reopen screener."
         }
     }
 }
@@ -38,24 +43,13 @@ enum OCR {
             result = OCRResult(text: try await tesseract(image, pixelScale: pixelScale, config.ocr, format: format),
                                engine: "Tesseract", warning: nil)
         case .auto:
-            // Vision is the stronger engine for Latin script but cannot read Greek, so both run in
-            // parallel and Tesseract wins whenever it sees Greek characters.
             async let visionText = vision(image, config.ocr, format: format)
             async let tesseractText = tesseract(image, pixelScale: pixelScale, config.ocr, format: format)
-            var tesseractOutput: String?
-            var tesseractError: Error?
-            do {
-                tesseractOutput = try await tesseractText
-            } catch {
-                tesseractError = error
-            }
-            let visionOutput = try await visionText
-            if let tesseractOutput, GreekText.containsGreek(tesseractOutput) {
-                result = OCRResult(text: tesseractOutput, engine: "Tesseract", warning: nil)
-            } else {
-                result = OCRResult(text: visionOutput, engine: "Vision",
-                                   warning: tesseractError.map { "Greek detection unavailable — \($0.localizedDescription)" })
-            }
+            let visionResult: Result<String, Error>
+            let tesseractResult: Result<String, Error>
+            do { visionResult = .success(try await visionText) } catch { visionResult = .failure(error) }
+            do { tesseractResult = .success(try await tesseractText) } catch { tesseractResult = .failure(error) }
+            result = try chooseAuto(vision: visionResult, tesseract: tesseractResult)
         }
         var text = result.text
         if config.output.greekMonotonic {
@@ -66,6 +60,29 @@ enum OCR {
             text = await MainActor.run { GreekCorrector(spell: SystemSpellChecker()).correct(raw) }
         }
         return OCRResult(text: text, engine: result.engine, warning: result.warning)
+    }
+
+    /// Auto mode: Vision is the stronger engine for Latin script but cannot read Greek, so both run in parallel.
+    /// Tesseract wins whenever it sees Greek; otherwise Vision is used. If one engine fails, the other's text is
+    /// still copied and the toast says what went wrong; only when both fail does the capture fail.
+    static func chooseAuto(vision: Result<String, Error>, tesseract: Result<String, Error>) throws -> OCRResult {
+        switch (vision, tesseract) {
+        case (_, .success(let text)) where GreekText.containsGreek(text):
+            let warning: String? = if case .failure(let error) = vision { visionWarning(error) } else { nil }
+            return OCRResult(text: text, engine: "Tesseract", warning: warning)
+        case (.success(let text), .success):
+            return OCRResult(text: text, engine: "Vision", warning: nil)
+        case (.success(let text), .failure(let error)):
+            return OCRResult(text: text, engine: "Vision", warning: "Greek detection unavailable — \(error.localizedDescription)")
+        case (.failure(let error), .success(let text)):
+            return OCRResult(text: text, engine: "Tesseract", warning: visionWarning(error))
+        case (.failure(let error), .failure):
+            throw error
+        }
+    }
+
+    private static func visionWarning(_ error: Error) -> String {
+        "Read by Tesseract — \(error.localizedDescription)"
     }
 
     static func vision(_ image: CGImage, _ ocr: OCRConfig, format: TextFormat) async throws -> String {
@@ -85,7 +102,7 @@ enum OCR {
                     }
                     continuation.resume(returning: TextLayout.render(TextLayout.rows(from: fragments), format: format))
                 } catch {
-                    continuation.resume(throwing: error)
+                    continuation.resume(throwing: OCRError.visionUnavailable(error.localizedDescription))
                 }
             }
         }
@@ -193,7 +210,7 @@ enum TextLineDetector {
                     }
                     continuation.resume(returning: rects)
                 } catch {
-                    continuation.resume(throwing: error)
+                    continuation.resume(throwing: OCRError.visionUnavailable(error.localizedDescription))
                 }
             }
         }

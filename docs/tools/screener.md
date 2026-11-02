@@ -31,7 +31,13 @@
                                upscaled 2x on 1x displays and padded before being piped to stdin.
               - "auto"      -> runs both engines in parallel; if Tesseract's output contains Greek
                                characters it wins, otherwise Vision's result is used (Vision is the
-                               stronger engine for Latin script but cannot read Greek at all).
+                               stronger engine for Latin script but cannot read Greek at all). If one
+                               engine fails, the other's text is still copied and the toast explains
+                               why (shown for at least 4 s); the capture fails only if both fail.
+            If Apple Vision itself fails inside macOS, the error reads "Apple text recognition
+            stopped working in this session (macOS: …). Quit and reopen screener." This was seen
+            once in a process that had run for 17 days (E5RT model-load error, CRImageReaderError 1);
+            a fresh process works. Text mode's line detection reports the same message.
             Both engines report word boxes (Vision per-word boxes; Tesseract TSV output), which are
             grouped into visual rows (top -> bottom, left -> right) and rendered in one of two formats,
             chosen per capture with the overlay's format switch (keyboard.toggleFormat, or a click on the

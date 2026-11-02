@@ -129,21 +129,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 notify(config, "Copied \(text.count) characters",
                        detail: result.warning
                            ?? "\(lines) line\(lines == 1 ? "" : "s") · \(format == .preserved ? "screen format" : "plain text") · \(result.engine)",
-                       near: rect, on: screen, success: true)
+                       near: rect, on: screen, success: true, warning: result.warning != nil)
             } catch {
                 notify(config, "Capture failed", detail: error.localizedDescription, near: rect, on: screen, success: false)
             }
         }
     }
 
-    private func notify(_ config: AppConfig, _ message: String, detail: String?, near rect: CGRect, on screen: NSScreen, success: Bool) {
+    private func notify(_ config: AppConfig, _ message: String, detail: String?, near rect: CGRect, on screen: NSScreen,
+                        success: Bool, warning: Bool = false) {
         if config.feedback.sound {
             (success ? NSSound(named: NSSound.Name(config.feedback.soundName)) : NSSound(named: "Basso"))?.play()
         }
-        // Failures are always shown, even with toasts disabled, so errors are never silent.
-        if config.feedback.toast || !success {
+        // Failures and warnings are always shown, even with toasts disabled, and long enough to read.
+        if config.feedback.toast || !success || warning {
+            let readable = !success || warning
             Toast.show(message, detail: detail, near: rect, on: screen,
-                       duration: success ? config.feedback.toastDurationSeconds : max(config.feedback.toastDurationSeconds, 4))
+                       duration: readable ? max(config.feedback.toastDurationSeconds, 4) : config.feedback.toastDurationSeconds)
         }
     }
 

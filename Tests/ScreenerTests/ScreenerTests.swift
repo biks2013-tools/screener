@@ -307,3 +307,54 @@ final class BundledTessdataTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: target.appendingPathComponent("README.txt").path))
     }
 }
+
+final class AutoEngineChoiceTests: XCTestCase {
+    private let visionBroken = OCRError.visionUnavailable("TextRecognition.CRImageReaderError error 1")
+    private let tesseractBroken = OCRError.tesseractFailed(1, "boom")
+
+    func testGreekGoesToTesseract() throws {
+        let result = try OCR.chooseAuto(vision: .success("Kalnuepa"), tesseract: .success("Καλημέρα"))
+        XCTAssertEqual(result.engine, "Tesseract")
+        XCTAssertEqual(result.text, "Καλημέρα")
+        XCTAssertNil(result.warning)
+    }
+
+    func testLatinGoesToVision() throws {
+        let result = try OCR.chooseAuto(vision: .success("Hello"), tesseract: .success("He1lo"))
+        XCTAssertEqual(result.engine, "Vision")
+        XCTAssertEqual(result.text, "Hello")
+        XCTAssertNil(result.warning)
+    }
+
+    func testVisionFailureFallsBackToTesseractWithWarning() throws {
+        // The reported case: Vision broke inside a long-running process; the capture must still copy text.
+        let result = try OCR.chooseAuto(vision: .failure(visionBroken), tesseract: .success("The file is extracted"))
+        XCTAssertEqual(result.engine, "Tesseract")
+        XCTAssertEqual(result.text, "The file is extracted")
+        XCTAssertEqual(result.warning, "Read by Tesseract — " + visionBroken.localizedDescription)
+        XCTAssertTrue(result.warning!.contains("Quit and reopen screener"))
+    }
+
+    func testVisionFailureWithGreekStillWarns() throws {
+        let result = try OCR.chooseAuto(vision: .failure(visionBroken), tesseract: .success("Καλημέρα"))
+        XCTAssertEqual(result.engine, "Tesseract")
+        XCTAssertNotNil(result.warning)
+    }
+
+    func testTesseractFailureKeepsVision() throws {
+        let result = try OCR.chooseAuto(vision: .success("Hello"), tesseract: .failure(tesseractBroken))
+        XCTAssertEqual(result.engine, "Vision")
+        XCTAssertTrue(result.warning!.hasPrefix("Greek detection unavailable"))
+    }
+
+    func testBothFailingThrowsTheVisionError() {
+        XCTAssertThrowsError(try OCR.chooseAuto(vision: .failure(visionBroken), tesseract: .failure(tesseractBroken))) { error in
+            XCTAssertTrue(error.localizedDescription.contains("Quit and reopen screener"))
+        }
+    }
+
+    func testVisionErrorMessage() {
+        XCTAssertEqual(visionBroken.localizedDescription,
+                       "Apple text recognition stopped working in this session (macOS: TextRecognition.CRImageReaderError error 1). Quit and reopen screener.")
+    }
+}
