@@ -1,6 +1,6 @@
 cask "screener" do
-  version "0.2.1"
-  sha256 "0475eea3b053650a373d254eca1c91400112f7d383a61eb1937fb20a5519d4fb"
+  version "0.2.2"
+  sha256 "6fb0171dc64100af827e3f12f586ed5a9df88bf5ee6206528bae7f6b5b866f21"
 
   url "https://github.com/biks2013-tools/screener/releases/download/v#{version}/screener-#{version}.zip"
   name "screener"
